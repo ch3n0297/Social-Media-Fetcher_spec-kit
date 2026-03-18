@@ -4,39 +4,67 @@ export class SchedulerService {
     this.intervalMs = intervalMs;
     this.logger = logger;
     this.timer = null;
+    this.started = false;
+    this.tickInProgress = false;
   }
 
   start() {
-    if (this.timer || this.intervalMs <= 0) {
+    if (this.started || this.intervalMs <= 0) {
       return;
     }
 
-    this.timer = setInterval(async () => {
-      try {
-        await this.scheduledSyncService.enqueueAllActiveAccounts({
-          requestedBy: "scheduler",
-        });
-      } catch (error) {
-        this.logger.error("Scheduled sync tick failed", { error: error.message });
-      }
+    this.started = true;
+    this.#scheduleNextTick();
+  }
+
+  async #runTick() {
+    if (!this.started || this.tickInProgress) {
+      return;
+    }
+
+    this.tickInProgress = true;
+
+    try {
+      await this.scheduledSyncService.enqueueAllActiveAccounts({
+        requestedBy: "scheduler",
+      });
+    } catch (error) {
+      this.logger.error("Scheduled sync tick failed", { error });
+    } finally {
+      this.tickInProgress = false;
+      this.#scheduleNextTick();
+    }
+  }
+
+  #scheduleNextTick() {
+    if (!this.started) {
+      return;
+    }
+
+    this.timer = setTimeout(() => {
+      this.timer = null;
+      void this.#runTick();
     }, this.intervalMs);
 
     this.timer.unref?.();
   }
 
   stop() {
+    this.started = false;
+
     if (!this.timer) {
       return;
     }
 
-    clearInterval(this.timer);
+    clearTimeout(this.timer);
     this.timer = null;
   }
 
   snapshot() {
     return {
-      running: Boolean(this.timer),
+      running: this.started,
       intervalMs: this.intervalMs,
+      tickInProgress: this.tickInProgress,
     };
   }
 }

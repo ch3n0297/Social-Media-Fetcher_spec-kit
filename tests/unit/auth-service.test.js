@@ -44,6 +44,27 @@ test("verifySignedRequest rejects invalid signatures", () => {
         signatureTtlMs: 5 * 60 * 1000,
         clock: () => new Date("2026-03-18T00:00:00.000Z"),
       }),
-    /validation failed/i,
+    /簽章驗證失敗/,
+  );
+});
+
+test("verifySignedRequest rejects requests when allowed client IDs are misconfigured", () => {
+  const rawBody = JSON.stringify({ requested_by: "unit-test" });
+
+  assert.throws(
+    () =>
+      verifySignedRequest({
+        headers: {
+          "x-client-id": "demo-sheet",
+          "x-timestamp": "2026-03-18T00:00:00.000Z",
+          "x-signature": "bad-signature",
+        },
+        rawBody,
+        sharedSecret: "local-dev-secret",
+        allowedClientIds: undefined,
+        signatureTtlMs: 5 * 60 * 1000,
+        clock: () => new Date("2026-03-18T00:00:00.000Z"),
+      }),
+    /尚未設定允許的 client ID/,
   );
 });

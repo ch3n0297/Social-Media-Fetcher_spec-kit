@@ -13,6 +13,11 @@ function readBodyArgument() {
 
 function main() {
   const config = loadConfig();
+  const clientId = config.allowedClientIds[0];
+  if (!clientId) {
+    throw new Error("At least one allowed client ID must be configured.");
+  }
+
   const timestamp = config.clock().toISOString();
   const rawBody = readBodyArgument();
   const signature = signPayload({
@@ -24,7 +29,7 @@ function main() {
   process.stdout.write(
     JSON.stringify(
       {
-        client_id: config.allowedClientIds[0],
+        client_id: clientId,
         timestamp,
         signature,
         raw_body: rawBody,

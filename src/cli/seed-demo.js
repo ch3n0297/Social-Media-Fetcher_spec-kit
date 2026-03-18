@@ -1,4 +1,6 @@
 import crypto from "node:crypto";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { loadConfig } from "../config.js";
 import { FileStore } from "../lib/fs-store.js";
 import { AccountConfigRepository } from "../repositories/account-config-repository.js";
@@ -9,7 +11,7 @@ export function createDemoAccounts(clock) {
   return [
     {
       id: crypto.randomUUID(),
-      clientName: "Demo Client",
+      clientName: "示範客戶",
       platform: "instagram",
       accountId: "acct-instagram-demo",
       refreshDays: 7,
@@ -20,12 +22,12 @@ export function createDemoAccounts(clock) {
       lastSuccessTime: null,
       currentJobId: null,
       refreshStatus: "idle",
-      systemMessage: "Account ready for refresh.",
+      systemMessage: "帳號已就緒，可進行資料更新。",
       updatedAt: now,
     },
     {
       id: crypto.randomUUID(),
-      clientName: "Demo Client",
+      clientName: "示範客戶",
       platform: "facebook",
       accountId: "acct-facebook-demo",
       refreshDays: 7,
@@ -36,12 +38,12 @@ export function createDemoAccounts(clock) {
       lastSuccessTime: null,
       currentJobId: null,
       refreshStatus: "idle",
-      systemMessage: "Account ready for refresh.",
+      systemMessage: "帳號已就緒，可進行資料更新。",
       updatedAt: now,
     },
     {
       id: crypto.randomUUID(),
-      clientName: "Demo Client",
+      clientName: "示範客戶",
       platform: "tiktok",
       accountId: "acct-tiktok-demo",
       refreshDays: 7,
@@ -52,7 +54,7 @@ export function createDemoAccounts(clock) {
       lastSuccessTime: null,
       currentJobId: null,
       refreshStatus: "idle",
-      systemMessage: "Account ready for refresh.",
+      systemMessage: "帳號已就緒，可進行資料更新。",
       updatedAt: now,
     },
   ];
@@ -83,6 +85,14 @@ async function main() {
   config.logger.info("Seeded demo accounts", { count: accounts.length });
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+function isDirectExecution() {
+  if (!process.argv[1]) {
+    return false;
+  }
+
+  return fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
+}
+
+if (isDirectExecution()) {
   await main();
 }

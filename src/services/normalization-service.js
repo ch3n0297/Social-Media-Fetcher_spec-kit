@@ -1,9 +1,17 @@
 import crypto from "node:crypto";
 
+function normalizeContentType(value) {
+  if (typeof value !== "string" || value.trim() === "") {
+    return "unknown";
+  }
+
+  return value.toLowerCase();
+}
+
 function normalizeInstagramItem(item) {
   return {
     contentId: item.id,
-    contentType: item.media_type.toLowerCase(),
+    contentType: normalizeContentType(item.media_type),
     publishedAt: item.timestamp,
     caption: item.caption ?? "",
     url: item.permalink,
@@ -17,7 +25,7 @@ function normalizeInstagramItem(item) {
 function normalizeFacebookItem(item) {
   return {
     contentId: item.post_id,
-    contentType: item.type,
+    contentType: normalizeContentType(item.type),
     publishedAt: item.created_time,
     caption: item.message ?? "",
     url: item.permalink_url,
@@ -31,7 +39,7 @@ function normalizeFacebookItem(item) {
 function normalizeTiktokItem(item) {
   return {
     contentId: item.aweme_id,
-    contentType: item.content_type,
+    contentType: normalizeContentType(item.content_type),
     publishedAt: item.create_time,
     caption: item.desc ?? "",
     url: item.share_url,
@@ -52,12 +60,19 @@ export function createNormalizationService({ clock }) {
   return {
     normalizeBatch({ platform, accountId, accountKey, jobId, rawItems }) {
       const normalizeItem = NORMALIZERS[platform];
+      if (typeof normalizeItem !== "function") {
+        const error = new Error(`目前不支援的平台：${platform}`);
+        error.code = "UNSUPPORTED_PLATFORM";
+        throw error;
+      }
+
       const fetchTime = clock().toISOString();
 
       return rawItems.map((item) => {
         const normalized = normalizeItem(item);
 
         return {
+          ...normalized,
           id: crypto.randomUUID(),
           jobId,
           accountKey,
@@ -65,7 +80,6 @@ export function createNormalizationService({ clock }) {
           accountId,
           fetchTime,
           dataStatus: "fresh",
-          ...normalized,
         };
       });
     },

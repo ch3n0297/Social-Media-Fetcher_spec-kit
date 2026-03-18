@@ -24,7 +24,7 @@ export function toErrorResponse(error) {
     statusCode: 500,
     body: {
       error: "INTERNAL_ERROR",
-      system_message: "Internal server error.",
+      system_message: "伺服器發生內部錯誤。",
     },
   };
 }

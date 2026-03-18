@@ -116,6 +116,8 @@ paths:
   /api/v1/refresh-jobs/manual:
     post:
       summary: 送出單一帳號手動刷新
+      security:
+        - HmacAuth: []
       parameters:
         - $ref: '#/components/parameters/ClientIdHeader'
         - $ref: '#/components/parameters/TimestampHeader'
@@ -160,6 +162,8 @@ paths:
   /api/v1/internal/scheduled-sync:
     post:
       summary: 手動觸發一次排程同步
+      security:
+        - HmacAuth: []
       parameters:
         - $ref: '#/components/parameters/ClientIdHeader'
         - $ref: '#/components/parameters/TimestampHeader'

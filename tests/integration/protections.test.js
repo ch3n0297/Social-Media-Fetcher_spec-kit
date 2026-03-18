@@ -88,7 +88,7 @@ test("manual refresh rejects duplicate active jobs", async () => {
     });
 
     assert.equal(second.response.status, 409);
-    assert.match(second.json.system_message, /already queued or running/i);
+    assert.match(second.json.system_message, /待處理或執行中/);
     await app.services.jobQueue.waitForIdle();
   } finally {
     await cleanup();
@@ -160,7 +160,7 @@ test("manual refresh rate limits by request source", async () => {
     });
 
     assert.equal(second.response.status, 429);
-    assert.match(second.json.system_message, /too quickly/i);
+    assert.match(second.json.system_message, /頻率過高|過於頻繁/);
     await app.services.jobQueue.waitForIdle();
   } finally {
     await cleanup();
@@ -201,7 +201,7 @@ test("upstream failures mark the job and sheet snapshot as error", async () => {
     const sheetStatuses = await readStoreFile(app, "sheet-status.json");
     const snapshot = sheetStatuses.find((entry) => entry.accountId === "tt-fail-1");
     assert.equal(snapshot.refreshStatus, "error");
-    assert.match(snapshot.systemMessage, /token expired/i);
+    assert.match(snapshot.systemMessage, /授權已過期/);
   } finally {
     await cleanup();
   }

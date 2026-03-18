@@ -14,18 +14,18 @@ function buildRawRecords(job, rawItems, fetchedAt) {
 
 function toSystemMessage(error) {
   if (error.code === "TOKEN_EXPIRED") {
-    return "Failed to refresh account: token expired.";
+    return "更新失敗：平台授權已過期。";
   }
 
   if (error.code === "RATE_LIMITED") {
-    return "Failed to refresh account: upstream API rate limited the request.";
+    return "更新失敗：平台 API 目前觸發頻率限制。";
   }
 
   if (error.code === "ENOENT") {
-    return "Failed to refresh account: platform fixture data is missing.";
+    return "更新失敗：找不到對應的平台測試資料。";
   }
 
-  return `Failed to refresh account: ${error.message}`;
+  return `更新失敗：${error.message}`;
 }
 
 export class RefreshOrchestrator {
@@ -61,7 +61,7 @@ export class RefreshOrchestrator {
       await this.jobRepository.updateById(job.id, {
         status: "error",
         finishedAt: this.clock().toISOString(),
-        systemMessage: "Account configuration no longer exists.",
+        systemMessage: "帳號設定已不存在。",
         errorCode: "ACCOUNT_NOT_FOUND",
       });
       return;
@@ -72,7 +72,7 @@ export class RefreshOrchestrator {
       ...job,
       status: "running",
       startedAt,
-      systemMessage: "Fetching platform data.",
+      systemMessage: "正在抓取平台資料。",
     };
 
     await this.jobRepository.updateById(job.id, {
@@ -99,15 +99,14 @@ export class RefreshOrchestrator {
         rawItems,
       });
 
-      await this.rawRecordRepository.appendMany(rawRecords);
-      await this.normalizedRecordRepository.replaceForAccount(job.accountKey, normalizedRecords);
+      await this.#persistFetchedRecords(job.accountKey, rawRecords, normalizedRecords);
 
       const finishedAt = this.clock().toISOString();
       const successfulJob = {
         ...runningJob,
         status: "success",
         finishedAt,
-        systemMessage: `Refresh completed with ${normalizedRecords.length} normalized records.`,
+        systemMessage: `更新完成，共整理 ${normalizedRecords.length} 筆內容資料。`,
         resultSummary: {
           rawRecordCount: rawRecords.length,
           normalizedRecordCount: normalizedRecords.length,
@@ -115,18 +114,18 @@ export class RefreshOrchestrator {
         },
       };
 
-      await this.statusService.markSuccess(
-        accountConfig,
-        successfulJob,
-        normalizedRecords,
-        successfulJob.systemMessage,
-      );
       await this.jobRepository.updateById(job.id, {
         status: successfulJob.status,
         finishedAt: successfulJob.finishedAt,
         systemMessage: successfulJob.systemMessage,
         resultSummary: successfulJob.resultSummary,
       });
+      await this.statusService.markSuccess(
+        accountConfig,
+        successfulJob,
+        normalizedRecords,
+        successfulJob.systemMessage,
+      );
       this.logger.info("Job completed", {
         jobId: job.id,
         platform: job.platform,
@@ -154,8 +153,38 @@ export class RefreshOrchestrator {
         jobId: job.id,
         platform: job.platform,
         accountId: job.accountId,
-        error: error.message,
+        error,
       });
     }
+  }
+
+  async #persistFetchedRecords(accountKey, rawRecords, normalizedRecords) {
+    const store = this.rawRecordRepository.store;
+
+    if (
+      store !== this.normalizedRecordRepository.store ||
+      typeof store.updateCollections !== "function"
+    ) {
+      await this.rawRecordRepository.appendMany(rawRecords);
+      await this.normalizedRecordRepository.replaceForAccount(accountKey, normalizedRecords);
+      return;
+    }
+
+    await store.updateCollections(
+      [this.rawRecordRepository.collection, this.normalizedRecordRepository.collection],
+      (collections) => {
+        const nextRawRecords = collections[this.rawRecordRepository.collection];
+        const nextNormalizedRecords = collections[this.normalizedRecordRepository.collection]
+          .filter((record) => record.accountKey !== accountKey);
+
+        nextRawRecords.push(...rawRecords);
+        nextNormalizedRecords.push(...normalizedRecords);
+
+        return {
+          [this.rawRecordRepository.collection]: nextRawRecords,
+          [this.normalizedRecordRepository.collection]: nextNormalizedRecords,
+        };
+      },
+    );
   }
 }

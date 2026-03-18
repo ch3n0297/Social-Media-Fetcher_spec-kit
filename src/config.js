@@ -6,6 +6,59 @@ function readNumber(value, fallback) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function readTrimmedString(value) {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return trimmed === "" ? undefined : trimmed;
+}
+
+function resolveSharedSecret(overrides) {
+  const sharedSecret = overrides.sharedSecret ?? readTrimmedString(process.env.API_SHARED_SECRET);
+
+  if (!sharedSecret) {
+    throw new Error("API_SHARED_SECRET must be configured before starting the service.");
+  }
+
+  return sharedSecret;
+}
+
+function resolveAllowedClientIds(overrides) {
+  if (overrides.allowedClientIds !== undefined) {
+    if (!Array.isArray(overrides.allowedClientIds)) {
+      throw new TypeError("allowedClientIds override must be an array.");
+    }
+
+    const clientIds = overrides.allowedClientIds
+      .map((value) => readTrimmedString(value))
+      .filter(Boolean);
+
+    if (clientIds.length === 0) {
+      throw new Error("At least one allowed client ID must be configured.");
+    }
+
+    return clientIds;
+  }
+
+  const rawClientIds = process.env.ALLOWED_CLIENT_IDS;
+  if (rawClientIds === undefined) {
+    return ["demo-sheet"];
+  }
+
+  const clientIds = rawClientIds
+    .split(",")
+    .map((value) => readTrimmedString(value))
+    .filter(Boolean);
+
+  if (clientIds.length === 0) {
+    throw new Error("ALLOWED_CLIENT_IDS must include at least one non-empty client ID.");
+  }
+
+  return clientIds;
+}
+
 export function loadConfig(overrides = {}) {
   const rootDir = overrides.rootDir ?? process.cwd();
 
@@ -17,15 +70,13 @@ export function loadConfig(overrides = {}) {
       overrides.fixturesDir ??
       process.env.FIXTURES_DIR ??
       path.join(rootDir, "fixtures", "platforms"),
-    sharedSecret:
-      overrides.sharedSecret ?? process.env.API_SHARED_SECRET ?? "local-dev-secret",
-    allowedClientIds:
-      overrides.allowedClientIds ??
-      (process.env.ALLOWED_CLIENT_IDS
-        ? process.env.ALLOWED_CLIENT_IDS.split(",").map((value) => value.trim())
-        : ["demo-sheet"]),
+    sharedSecret: resolveSharedSecret(overrides),
+    allowedClientIds: resolveAllowedClientIds(overrides),
     signatureTtlMs:
       overrides.signatureTtlMs ?? readNumber(process.env.SIGNATURE_TTL_MS, 5 * 60 * 1000),
+    maxRequestBodyBytes:
+      overrides.maxRequestBodyBytes ??
+      readNumber(process.env.MAX_REQUEST_BODY_BYTES, 1024 * 1024),
     maxConcurrentJobs:
       overrides.maxConcurrentJobs ?? readNumber(process.env.MAX_CONCURRENT_JOBS, 3),
     sourceRateLimitWindowMs:

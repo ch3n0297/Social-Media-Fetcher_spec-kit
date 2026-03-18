@@ -28,7 +28,7 @@ export function createAccount({
     lastSuccessTime: null,
     currentJobId: null,
     refreshStatus: "idle",
-    systemMessage: "Account ready for refresh.",
+    systemMessage: "帳號已就緒，可進行資料更新。",
     updatedAt: "2026-03-18T00:00:00.000Z",
   };
 }
@@ -55,6 +55,7 @@ export async function setupTestApp({
     port: 0,
     seedDemoData: false,
     autoStartScheduler: false,
+    sharedSecret: "local-dev-secret",
     logger: createLogger({ silent: true }),
     clock: () => new Date(now),
     ...overrides,

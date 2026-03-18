@@ -5,8 +5,10 @@ import { validateScheduledSyncPayload } from "../services/validation-service.js"
 
 export async function handleInternalScheduledSyncRoute({ req, res, services, config }) {
   try {
-    const { rawBody, body } = await readJsonRequest(req);
-    verifySignedRequest({
+    const { rawBody, body } = await readJsonRequest(req, {
+      maxBodyBytes: config.maxRequestBodyBytes,
+    });
+    await verifySignedRequest({
       headers: req.headers,
       rawBody,
       sharedSecret: config.sharedSecret,

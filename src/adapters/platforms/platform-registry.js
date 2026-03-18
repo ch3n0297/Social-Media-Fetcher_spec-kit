@@ -13,7 +13,7 @@ export function createPlatformRegistry({ fixturesDir }) {
   return {
     get(platform) {
       if (!adapters.has(platform)) {
-        throw new HttpError(400, "PLATFORM_UNSUPPORTED", `Unsupported platform: ${platform}`);
+        throw new HttpError(400, "PLATFORM_UNSUPPORTED", `目前不支援的平台：${platform}`);
       }
 
       return adapters.get(platform);

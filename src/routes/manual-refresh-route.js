@@ -4,8 +4,10 @@ import { verifySignedRequest } from "../services/auth-service.js";
 
 export async function handleManualRefreshRoute({ req, res, services, config }) {
   try {
-    const { rawBody, body } = await readJsonRequest(req);
-    const auth = verifySignedRequest({
+    const { rawBody, body } = await readJsonRequest(req, {
+      maxBodyBytes: config.maxRequestBodyBytes,
+    });
+    const auth = await verifySignedRequest({
       headers: req.headers,
       rawBody,
       sharedSecret: config.sharedSecret,
@@ -22,7 +24,7 @@ export async function handleManualRefreshRoute({ req, res, services, config }) {
     sendJson(res, 202, {
       job_id: job.id,
       status: "queued",
-      system_message: "Manual refresh request accepted.",
+      system_message: "已受理手動更新請求。",
     });
   } catch (error) {
     const response = toErrorResponse(error);

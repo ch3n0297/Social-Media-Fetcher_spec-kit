@@ -61,5 +61,53 @@ test("normalization service maps platform-specific fields into unified records",
   assert.equal(instagramRecord.views, 101);
   assert.equal(facebookRecord.likes, 22);
   assert.equal(tiktokRecord.shares, 3);
+  assert.equal(instagramRecord.fetchTime, "2026-03-18T00:00:00.000Z");
+  assert.equal(facebookRecord.fetchTime, "2026-03-18T00:00:00.000Z");
   assert.equal(tiktokRecord.fetchTime, "2026-03-18T00:00:00.000Z");
+});
+
+test("normalization service keeps system metadata authoritative", () => {
+  const service = createNormalizationService({
+    clock: () => new Date("2026-03-18T00:00:00.000Z"),
+  });
+
+  const record = service.normalizeBatch({
+    platform: "instagram",
+    accountId: "ig-1",
+    accountKey: "instagram:ig-1",
+    jobId: "job-1",
+    rawItems: [
+      {
+        id: "ig-item-1",
+        media_type: null,
+        caption: "IG",
+        permalink: "https://instagram.example.com/p/ig-item-1",
+        timestamp: "2026-03-17T00:00:00.000Z",
+        metrics: { plays: 101, likes: 11, comments: 2, shares: 1 },
+      },
+    ],
+  })[0];
+
+  assert.equal(record.jobId, "job-1");
+  assert.equal(record.accountId, "ig-1");
+  assert.equal(record.contentId, "ig-item-1");
+  assert.equal(record.contentType, "unknown");
+});
+
+test("normalization service rejects unsupported platforms", () => {
+  const service = createNormalizationService({
+    clock: () => new Date("2026-03-18T00:00:00.000Z"),
+  });
+
+  assert.throws(
+    () =>
+      service.normalizeBatch({
+        platform: "threads",
+        accountId: "th-1",
+        accountKey: "threads:th-1",
+        jobId: "job-1",
+        rawItems: [],
+      }),
+    /目前不支援的平台/,
+  );
 });

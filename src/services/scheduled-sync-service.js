@@ -32,7 +32,7 @@ export class ScheduledSyncService {
         await this.statusService.markRejected(accountConfig, {
           refreshStatus: "error",
           currentJobId: null,
-          systemMessage: "Scheduled sync skipped: account is missing target sheet metadata.",
+          systemMessage: "排程同步已略過：帳號缺少目標工作表資訊。",
         });
         continue;
       }
@@ -46,7 +46,7 @@ export class ScheduledSyncService {
         await this.statusService.markRejected(accountConfig, {
           refreshStatus: activeJob.status,
           currentJobId: activeJob.id,
-          systemMessage: "Scheduled sync skipped: an active job already exists.",
+          systemMessage: "排程同步已略過：此帳號已有進行中的工作。",
         });
         continue;
       }
@@ -62,8 +62,8 @@ export class ScheduledSyncService {
       });
 
       await this.jobRepository.create(job);
-      await this.statusService.markQueued(accountConfig, job, "Scheduled sync queued.");
-      this.jobQueue.enqueue(job);
+      await this.statusService.markQueued(accountConfig, job, "已排入排程同步工作。");
+      await this.jobQueue.enqueue(job);
       acceptedJobs.push(job.id);
     }
 

@@ -5,18 +5,20 @@ export class JobQueue {
     this.logger = logger;
     this.pending = [];
     this.pendingIds = new Set();
+    this.runningIds = new Set();
     this.running = 0;
     this.idleResolvers = [];
   }
 
   enqueue(job) {
-    if (this.pendingIds.has(job.id)) {
-      return;
+    if (this.pendingIds.has(job.id) || this.runningIds.has(job.id)) {
+      return false;
     }
 
     this.pending.push(job);
     this.pendingIds.add(job.id);
     this.#drain();
+    return true;
   }
 
   snapshot() {
@@ -41,6 +43,7 @@ export class JobQueue {
     while (this.running < this.concurrency && this.pending.length > 0) {
       const job = this.pending.shift();
       this.pendingIds.delete(job.id);
+      this.runningIds.add(job.id);
       this.running += 1;
       this.#run(job);
     }
@@ -52,9 +55,10 @@ export class JobQueue {
     } catch (error) {
       this.logger.error("Queue processor failed", {
         jobId: job.id,
-        error: error.message,
+        error,
       });
     } finally {
+      this.runningIds.delete(job.id);
       this.running -= 1;
       if (this.pending.length === 0 && this.running === 0) {
         this.idleResolvers.splice(0).forEach((resolve) => resolve());

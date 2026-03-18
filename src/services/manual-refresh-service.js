@@ -32,7 +32,7 @@ export class ManualRefreshService {
       throw new HttpError(
         400,
         "ACCOUNT_NOT_CONFIGURED",
-        "Account configuration does not exist for the requested platform/account_id.",
+        "找不到對應平台與 account_id 的帳號設定。",
       );
     }
 
@@ -44,12 +44,12 @@ export class ManualRefreshService {
       await this.statusService.markRejected(accountConfig, {
         refreshStatus: activeJob.status,
         currentJobId: activeJob.id,
-        systemMessage: "A refresh job is already queued or running for this account.",
+        systemMessage: "此帳號已有待處理或執行中的更新工作。",
       });
       throw new HttpError(
         409,
         "ACTIVE_JOB_EXISTS",
-        "A refresh job is already queued or running for this account.",
+        "此帳號已有待處理或執行中的更新工作。",
       );
     }
 
@@ -74,12 +74,12 @@ export class ManualRefreshService {
         await this.statusService.markRejected(accountConfig, {
           refreshStatus: accountConfig.refreshStatus,
           currentJobId: null,
-          systemMessage: "Refresh request is too frequent for this account.",
+          systemMessage: "此帳號的更新請求過於頻繁，請稍後再試。",
         });
         throw new HttpError(
           429,
           "ACCOUNT_RATE_LIMITED",
-          "Refresh request is too frequent for this account.",
+          "此帳號的更新請求過於頻繁，請稍後再試。",
         );
       }
     }
@@ -95,7 +95,7 @@ export class ManualRefreshService {
     });
 
     await this.jobRepository.create(job);
-    await this.statusService.markQueued(accountConfig, job, "Manual refresh request accepted.");
+    await this.statusService.markQueued(accountConfig, job, "已受理手動更新請求，正在排入佇列。");
     this.jobQueue.enqueue(job);
 
     return job;
@@ -108,7 +108,7 @@ export class ManualRefreshService {
     const recent = current.filter((timestamp) => timestamp >= windowStart);
 
     if (recent.length >= this.config.sourceRateLimitMax) {
-      throw new HttpError(429, "SOURCE_RATE_LIMITED", "Request source is sending requests too quickly.");
+      throw new HttpError(429, "SOURCE_RATE_LIMITED", "此請求來源的送出頻率過高，請稍後再試。");
     }
 
     recent.push(now);
@@ -120,7 +120,7 @@ export class ManualRefreshService {
       throw new HttpError(
         400,
         "ACCOUNT_CONFIG_INVALID",
-        "Account configuration is missing target sheet metadata.",
+        "帳號設定缺少目標工作表資訊。",
       );
     }
   }

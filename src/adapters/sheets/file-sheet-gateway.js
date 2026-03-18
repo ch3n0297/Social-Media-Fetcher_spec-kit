@@ -7,12 +7,12 @@ export class FileSheetGateway {
   async writeStatus(accountConfig, patch) {
     const timestamp = this.clock().toISOString();
     await this.sheetSnapshotRepository.upsertStatus({
+      ...patch,
       sheetId: accountConfig.sheetId,
       sheetRowKey: accountConfig.sheetRowKey,
       platform: accountConfig.platform,
       accountId: accountConfig.accountId,
       updatedAt: timestamp,
-      ...patch,
     });
   }
 

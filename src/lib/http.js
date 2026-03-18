@@ -1,9 +1,28 @@
 import { HttpError } from "./errors.js";
 
-export async function readJsonRequest(req) {
+export async function readJsonRequest(req, { maxBodyBytes = 1024 * 1024 } = {}) {
+  const declaredLength = Number(req.headers?.["content-length"]);
+  if (Number.isFinite(declaredLength) && declaredLength > maxBodyBytes) {
+    throw new HttpError(
+      413,
+      "PAYLOAD_TOO_LARGE",
+      `請求內容不得超過 ${maxBodyBytes} 位元組。`,
+    );
+  }
+
   const chunks = [];
+  let totalBytes = 0;
 
   for await (const chunk of req) {
+    totalBytes += chunk.length;
+    if (totalBytes > maxBodyBytes) {
+      throw new HttpError(
+        413,
+        "PAYLOAD_TOO_LARGE",
+        `請求內容不得超過 ${maxBodyBytes} 位元組。`,
+      );
+    }
+
     chunks.push(chunk);
   }
 
@@ -19,7 +38,7 @@ export async function readJsonRequest(req) {
       body: JSON.parse(rawBody),
     };
   } catch {
-    throw new HttpError(400, "INVALID_JSON", "Request body must be valid JSON.");
+    throw new HttpError(400, "INVALID_JSON", "請求內容必須是有效的 JSON。");
   }
 }
 
