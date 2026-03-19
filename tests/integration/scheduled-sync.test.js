@@ -6,7 +6,7 @@ import {
   readStoreFile,
   sendSignedJson,
   setupTestApp,
-} from "../../test-support/support.js";
+} from "../../backend/test-support/support.js";
 
 test("scheduled sync persists raw and normalized data and writes sheet snapshots", async () => {
   const accounts = [

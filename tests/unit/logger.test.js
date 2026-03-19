@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createLogger } from "../../src/lib/logger.js";
+import { createLogger } from "../../backend/src/lib/logger.js";
 
 test("logger serializes circular context safely and preserves reserved fields", () => {
   const lines = [];

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createNormalizationService } from "../../src/services/normalization-service.js";
+import { createNormalizationService } from "../../backend/src/services/normalization-service.js";
 
 test("normalization service maps platform-specific fields into unified records", () => {
   const service = createNormalizationService({

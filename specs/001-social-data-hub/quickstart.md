@@ -9,28 +9,33 @@
 
 ```bash
 npm install
-npm run build
 export API_SHARED_SECRET=local-dev-secret
 npm start
 ```
 
 預設會：
 
-- 在 `data/` 建立檔案式資料庫
-- 在 `fixtures/platforms/` 讀取三個平台的示範原始資料
-- 啟動 HTTP server 與排程器
-- 由 Node server 直接提供 `frontend/dist/` 內的 React + Vite build 產物
-- 在瀏覽器開啟 `http://localhost:3000/` 可查看唯讀 Dashboard；該介面只使用讀取 API，不會暴露 `API_SHARED_SECRET`
+- 在 `backend/data/` 建立檔案式資料庫
+- 在 `backend/fixtures/platforms/` 讀取三個平台的示範原始資料
+- 啟動 Fastify API server 與排程器
 
 ## 1.1 React + Vite 開發模式（選用）
 
 ```bash
 export API_SHARED_SECRET=local-dev-secret
-npm run dev:server
+npm run dev:backend
 npm run dev:frontend
 ```
 
-Vite dev server 會將 `/health` 與 `/api` proxy 到目前的 Node server，方便在不暴露任何 shared secret 到瀏覽器端的前提下開發前端。
+Vite dev server 會將 `/health` 與 `/api` proxy 到目前的 Fastify backend，方便在不暴露任何 shared secret 到瀏覽器端的前提下開發前端。
+
+## 1.2 建置前端（選用）
+
+```bash
+npm run build:frontend
+```
+
+前端 build 產物會輸出到 `frontend/dist/`，需由獨立前端部署或靜態主機提供；backend 不再直接提供前端資產。
 
 ## 2. 檢查健康狀態
 
@@ -98,11 +103,11 @@ curl -X POST http://localhost:3000/api/v1/refresh-jobs/manual \
 
 檢查以下檔案：
 
-- `data/raw-platform-records.json`
-- `data/normalized-content-records.json`
-- `data/jobs.json`
-- `data/sheet-status.json`
-- `data/sheet-output.json`
+- `backend/data/raw-platform-records.json`
+- `backend/data/normalized-content-records.json`
+- `backend/data/jobs.json`
+- `backend/data/sheet-status.json`
+- `backend/data/sheet-output.json`
 
 ## 6. 執行測試
 
@@ -115,4 +120,4 @@ npm test
 - 排程同步會保存 raw/normalized data 並同步狀態
 - 手動刷新為非同步、可去重複、可限流
 - 非法 `refresh_days` 與平台錯誤會回傳可理解訊息
-- React build 產物可被 Node server 正確提供，且唯讀 UI API 與受保護寫入端點的安全限制持續有效
+- 前端與後端分離後，唯讀 UI API 與受保護寫入端點的安全限制持續有效

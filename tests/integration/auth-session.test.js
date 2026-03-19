@@ -6,7 +6,7 @@ import {
   readStoreFile,
   sendJsonRequest,
   setupTestApp,
-} from "../../test-support/support.js";
+} from "../../backend/test-support/support.js";
 
 test("registration creates a pending user and blocks login until approved", async () => {
   const { app, cleanup, baseUrl } = await setupTestApp({

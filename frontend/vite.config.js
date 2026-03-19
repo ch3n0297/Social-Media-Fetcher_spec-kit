@@ -1,10 +1,13 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const apiProxyTarget = process.env.VITE_API_PROXY_TARGET ?? "http://localhost:3000";
+const frontendRoot = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
-  root: "frontend",
+  root: frontendRoot,
   plugins: [react()],
   publicDir: false,
   build: {

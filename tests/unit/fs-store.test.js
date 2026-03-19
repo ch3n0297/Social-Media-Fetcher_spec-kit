@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { FileStore } from "../../src/lib/fs-store.js";
+import { FileStore } from "../../backend/src/lib/fs-store.js";
 
 test("FileStore rejects collection names that attempt path traversal", async () => {
   const rootDir = await mkdtemp(path.join(os.tmpdir(), "fs-store-"));

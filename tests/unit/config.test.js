@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { loadConfig } from "../../src/config.js";
+import { loadConfig } from "../../backend/src/config.js";
 
 function withTemporaryEnv(changes, run) {
   const original = {

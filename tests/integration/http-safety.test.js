@@ -4,7 +4,7 @@ import {
   createAccount,
   sendSignedJson,
   setupTestApp,
-} from "../../test-support/support.js";
+} from "../../backend/test-support/support.js";
 
 test("manual refresh rejects oversized request bodies with 413", async () => {
   const accounts = [createAccount({ platform: "instagram", accountId: "ig-large-1" })];

@@ -229,7 +229,7 @@ export class UserAuthService {
       httpOnly: true,
       maxAge: Math.floor(this.config.sessionTtlMs / 1000),
       path: "/",
-      sameSite: "Lax",
+      sameSite: this.config.sessionCookieSameSite,
       secure: this.config.sessionCookieSecure,
     });
   }
@@ -239,7 +239,7 @@ export class UserAuthService {
       httpOnly: true,
       maxAge: 0,
       path: "/",
-      sameSite: "Lax",
+      sameSite: this.config.sessionCookieSameSite,
       secure: this.config.sessionCookieSecure,
     });
   }

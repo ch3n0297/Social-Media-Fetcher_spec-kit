@@ -4,21 +4,23 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node src/server.js",
-    "dev:server": "node src/server.js",
-    "dev:frontend": "vite",
-    "build": "vite build",
-    "preview:frontend": "vite preview",
-    "seed": "node src/cli/seed-demo.js",
-    "sign": "node src/cli/sign-request.js",
-    "test:server": "npm run build && node --test tests/integration/*.test.js tests/unit/*.test.js",
-    "test:ui": "vitest run",
-    "test": "npm run test:server && npm run test:ui"
+    "start": "node backend/src/server.js",
+    "dev:backend": "node backend/src/server.js",
+    "dev:frontend": "vite --config frontend/vite.config.js",
+    "build:frontend": "vite build --config frontend/vite.config.js",
+    "preview:frontend": "vite preview --config frontend/vite.config.js",
+    "seed": "node backend/src/cli/seed-demo.js",
+    "sign": "node backend/src/cli/sign-request.js",
+    "test:backend": "node --test tests/integration/*.test.js tests/unit/*.test.js",
+    "test:frontend": "vitest run --config frontend/vite.config.js",
+    "test": "npm run test:backend && npm run test:frontend"
   },
   "engines": {
     "node": ">=24.0.0"
   },
   "dependencies": {
+    "@fastify/cors": "^11.2.0",
+    "fastify": "^5.8.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

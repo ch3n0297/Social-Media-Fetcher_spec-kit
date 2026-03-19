@@ -1,4 +1,5 @@
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { createLogger } from "./lib/logger.js";
 
 function readNumber(value, fallback) {
@@ -31,6 +32,19 @@ function readTrimmedString(value) {
 
   const trimmed = value.trim();
   return trimmed === "" ? undefined : trimmed;
+}
+
+function readStringList(value, fallback = []) {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+
+  const items = value
+    .split(",")
+    .map((item) => readTrimmedString(item))
+    .filter(Boolean);
+
+  return items.length > 0 ? items : fallback;
 }
 
 function resolveSharedSecret(overrides) {
@@ -78,7 +92,8 @@ function resolveAllowedClientIds(overrides) {
 }
 
 export function loadConfig(overrides = {}) {
-  const rootDir = overrides.rootDir ?? process.cwd();
+  const defaultRootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  const rootDir = overrides.rootDir ?? defaultRootDir;
 
   return {
     host: overrides.host ?? process.env.HOST ?? "127.0.0.1",
@@ -103,6 +118,10 @@ export function loadConfig(overrides = {}) {
       overrides.sessionTtlMs ?? readNumber(process.env.SESSION_TTL_MS, 7 * 24 * 60 * 60 * 1000),
     sessionCookieSecure:
       overrides.sessionCookieSecure ?? readBoolean(process.env.SESSION_COOKIE_SECURE, false),
+    sessionCookieSameSite:
+      overrides.sessionCookieSameSite ??
+      readTrimmedString(process.env.SESSION_COOKIE_SAME_SITE) ??
+      "Lax",
     passwordResetTtlMs:
       overrides.passwordResetTtlMs ??
       readNumber(process.env.PASSWORD_RESET_TTL_MS, 60 * 60 * 1000),
@@ -116,6 +135,12 @@ export function loadConfig(overrides = {}) {
       "系統管理員",
     publicAppOrigin:
       overrides.publicAppOrigin ?? readTrimmedString(process.env.PUBLIC_APP_ORIGIN),
+    frontendOrigins:
+      overrides.frontendOrigins ??
+      readStringList(process.env.FRONTEND_ORIGINS, [
+        "http://127.0.0.1:5173",
+        "http://localhost:5173",
+      ]),
     maxConcurrentJobs:
       overrides.maxConcurrentJobs ?? readNumber(process.env.MAX_CONCURRENT_JOBS, 3),
     sourceRateLimitWindowMs:

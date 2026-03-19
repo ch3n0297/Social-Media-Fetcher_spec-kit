@@ -1,4 +1,5 @@
-import http from "node:http";
+import Fastify from "fastify";
+import fastifyCors from "@fastify/cors";
 import { loadConfig } from "./config.js";
 import { FileSheetGateway } from "./adapters/sheets/file-sheet-gateway.js";
 import { createPlatformRegistry } from "./adapters/platforms/platform-registry.js";
@@ -11,8 +12,8 @@ import { OutboxMessageRepository } from "./repositories/outbox-message-repositor
 import { NormalizedRecordRepository } from "./repositories/normalized-record-repository.js";
 import { PasswordResetTokenRepository } from "./repositories/password-reset-token-repository.js";
 import { RawRecordRepository } from "./repositories/raw-record-repository.js";
-import { SheetSnapshotRepository } from "./repositories/sheet-snapshot-repository.js";
 import { SessionRepository } from "./repositories/session-repository.js";
+import { SheetSnapshotRepository } from "./repositories/sheet-snapshot-repository.js";
 import { UserRepository } from "./repositories/user-repository.js";
 import {
   handleApproveUserRoute,
@@ -28,7 +29,6 @@ import {
 import { handleHealthRoute } from "./routes/health-route.js";
 import { handleInternalScheduledSyncRoute } from "./routes/internal-scheduled-sync-route.js";
 import { handleManualRefreshRoute } from "./routes/manual-refresh-route.js";
-import { handleStaticFrontendRoute } from "./routes/static-frontend-route.js";
 import { handleUiAccountDetailRoute, handleUiAccountsRoute } from "./routes/ui-accounts-route.js";
 import { seedDemoData } from "./cli/seed-demo.js";
 import { JobQueue } from "./services/job-queue.js";
@@ -82,6 +82,19 @@ async function recoverJobs({
   for (const job of queuedJobs) {
     jobQueue.enqueue(job);
   }
+}
+
+function createCorsOriginResolver(config) {
+  const allowedOrigins = new Set(config.frontendOrigins ?? []);
+
+  return (origin, callback) => {
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+
+    callback(null, allowedOrigins.has(origin));
+  };
 }
 
 export async function createApp(overrides = {}) {
@@ -224,159 +237,123 @@ export async function createApp(overrides = {}) {
     userRepository: repositories.userRepository,
   };
 
-  const server = http.createServer(async (req, res) => {
-    try {
-      const url = new URL(req.url, `http://${req.headers.host ?? "localhost"}`);
-      const key = `${req.method} ${url.pathname}`;
+  const fastify = Fastify({
+    bodyLimit: config.maxRequestBodyBytes,
+    logger: false,
+  });
 
-      if (
-        req.method === "GET" &&
-        (await handleStaticFrontendRoute({ res, pathname: url.pathname }))
-      ) {
-        return;
-      }
+  await fastify.register(fastifyCors, {
+    credentials: true,
+    methods: ["GET", "POST", "OPTIONS"],
+    origin: createCorsOriginResolver(config),
+  });
 
-      if (key === "GET /health") {
-        handleHealthRoute({ res, services, config });
-        return;
-      }
+  fastify.setErrorHandler((error, request, reply) => {
+    config.logger.error("Unhandled request failure", {
+      method: request.method,
+      path: request.url,
+      error,
+    });
 
-      if (key === "GET /api/v1/ui/accounts") {
-        await handleUiAccountsRoute({ req, res, services });
-        return;
-      }
+    const response = toErrorResponse(error);
+    reply.header("x-content-type-options", "nosniff");
+    reply.code(response.statusCode).send(response.body);
+  });
 
-      if (req.method === "GET") {
-        const accountDetailMatch = url.pathname.match(/^\/api\/v1\/ui\/accounts\/([^/]+)\/([^/]+)$/);
+  fastify.setNotFoundHandler((request, reply) => {
+    sendJson(reply, 404, {
+      error: "NOT_FOUND",
+      system_message: "找不到對應的路由。",
+    });
+  });
 
-        if (accountDetailMatch) {
-          await handleUiAccountDetailRoute({
-            req,
-            res,
-            services,
-            params: {
-              platform: decodeURIComponent(accountDetailMatch[1]),
-              accountId: decodeURIComponent(accountDetailMatch[2]),
-            },
-          });
-          return;
-        }
-      }
+  fastify.get("/health", async (request, reply) => {
+    handleHealthRoute({ res: reply, services, config });
+  });
 
-      if (key === "POST /api/v1/auth/register") {
-        await handleRegisterRoute({ req, res, services, config });
-        return;
-      }
+  fastify.get("/api/v1/ui/accounts", async (request, reply) => {
+    await handleUiAccountsRoute({ req: request, res: reply, services });
+  });
 
-      if (key === "POST /api/v1/auth/login") {
-        await handleLoginRoute({ req, res, services, config });
-        return;
-      }
+  fastify.get("/api/v1/ui/accounts/:platform/:accountId", async (request, reply) => {
+    await handleUiAccountDetailRoute({
+      req: request,
+      res: reply,
+      services,
+      params: request.params,
+    });
+  });
 
-      if (key === "POST /api/v1/auth/logout") {
-        await handleLogoutRoute({ req, res, services });
-        return;
-      }
+  fastify.post("/api/v1/auth/register", async (request, reply) => {
+    await handleRegisterRoute({ req: request, res: reply, services, config });
+  });
 
-      if (key === "GET /api/v1/auth/me") {
-        await handleCurrentUserRoute({ req, res, services });
-        return;
-      }
+  fastify.post("/api/v1/auth/login", async (request, reply) => {
+    await handleLoginRoute({ req: request, res: reply, services, config });
+  });
 
-      if (key === "POST /api/v1/auth/forgot-password") {
-        await handleForgotPasswordRoute({ req, res, services, config });
-        return;
-      }
+  fastify.post("/api/v1/auth/logout", async (request, reply) => {
+    await handleLogoutRoute({ req: request, res: reply, services });
+  });
 
-      if (key === "POST /api/v1/auth/reset-password") {
-        await handleResetPasswordRoute({ req, res, services, config });
-        return;
-      }
+  fastify.get("/api/v1/auth/me", async (request, reply) => {
+    await handleCurrentUserRoute({ req: request, res: reply, services });
+  });
 
-      if (key === "GET /api/v1/admin/pending-users") {
-        await handlePendingUsersRoute({ req, res, services });
-        return;
-      }
+  fastify.post("/api/v1/auth/forgot-password", async (request, reply) => {
+    await handleForgotPasswordRoute({ req: request, res: reply, services, config });
+  });
 
-      if (req.method === "POST") {
-        const approveUserMatch = url.pathname.match(/^\/api\/v1\/admin\/pending-users\/([^/]+)\/approve$/);
+  fastify.post("/api/v1/auth/reset-password", async (request, reply) => {
+    await handleResetPasswordRoute({ req: request, res: reply, services, config });
+  });
 
-        if (approveUserMatch) {
-          await handleApproveUserRoute({
-            req,
-            res,
-            services,
-            params: {
-              userId: decodeURIComponent(approveUserMatch[1]),
-            },
-          });
-          return;
-        }
+  fastify.get("/api/v1/admin/pending-users", async (request, reply) => {
+    await handlePendingUsersRoute({ req: request, res: reply, services });
+  });
 
-        const rejectUserMatch = url.pathname.match(/^\/api\/v1\/admin\/pending-users\/([^/]+)\/reject$/);
+  fastify.post("/api/v1/admin/pending-users/:userId/approve", async (request, reply) => {
+    await handleApproveUserRoute({
+      req: request,
+      res: reply,
+      services,
+      params: request.params,
+    });
+  });
 
-        if (rejectUserMatch) {
-          await handleRejectUserRoute({
-            req,
-            res,
-            services,
-            params: {
-              userId: decodeURIComponent(rejectUserMatch[1]),
-            },
-          });
-          return;
-        }
-      }
+  fastify.post("/api/v1/admin/pending-users/:userId/reject", async (request, reply) => {
+    await handleRejectUserRoute({
+      req: request,
+      res: reply,
+      services,
+      params: request.params,
+    });
+  });
 
-      if (key === "POST /api/v1/refresh-jobs/manual") {
-        await handleManualRefreshRoute({ req, res, services, config });
-        return;
-      }
+  fastify.post("/api/v1/refresh-jobs/manual", async (request, reply) => {
+    await handleManualRefreshRoute({ req: request, res: reply, services, config });
+  });
 
-      if (key === "POST /api/v1/internal/scheduled-sync") {
-        await handleInternalScheduledSyncRoute({ req, res, services, config });
-        return;
-      }
-
-      sendJson(res, 404, {
-        error: "NOT_FOUND",
-        system_message: "找不到對應的路由。",
-      });
-    } catch (error) {
-      config.logger.error("Unhandled request failure", {
-        method: req.method,
-        path: req.url,
-        error,
-      });
-
-      if (res.headersSent) {
-        res.end();
-        return;
-      }
-
-      const response = toErrorResponse(error);
-      sendJson(res, response.statusCode, response.body);
-    }
+  fastify.post("/api/v1/internal/scheduled-sync", async (request, reply) => {
+    await handleInternalScheduledSyncRoute({ req: request, res: reply, services, config });
   });
 
   return {
     config,
+    fastify,
+    server: fastify.server,
     services,
-    server,
     async start() {
-      await new Promise((resolve, reject) => {
-        server.once("error", reject);
-        server.listen(config.port, config.host, () => {
-          server.off("error", reject);
-          resolve();
-        });
+      await fastify.listen({
+        host: config.host,
+        port: config.port,
       });
 
       if (config.autoStartScheduler) {
         schedulerService.start();
       }
 
-      const address = server.address();
+      const address = fastify.server.address();
       return {
         host: typeof address === "object" ? address.address : config.host,
         port: typeof address === "object" ? address.port : config.port,
@@ -384,16 +361,7 @@ export async function createApp(overrides = {}) {
     },
     async stop() {
       schedulerService.stop();
-      await new Promise((resolve, reject) => {
-        server.close((error) => {
-          if (error) {
-            reject(error);
-            return;
-          }
-
-          resolve();
-        });
-      });
+      await fastify.close();
       await jobQueue.waitForIdle();
     },
   };

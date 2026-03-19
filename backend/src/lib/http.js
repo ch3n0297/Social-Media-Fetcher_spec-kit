@@ -1,6 +1,23 @@
 import { HttpError } from "./errors.js";
 
 export async function readJsonRequest(req, { maxBodyBytes = 1024 * 1024 } = {}) {
+  if (
+    req &&
+    typeof req === "object" &&
+    "body" in req &&
+    !(Symbol.asyncIterator in req)
+  ) {
+    const body = req.body ?? {};
+    const rawBody =
+      typeof req.rawBody === "string"
+        ? req.rawBody
+        : body && Object.keys(body).length > 0
+          ? JSON.stringify(body)
+          : "";
+
+    return { rawBody, body };
+  }
+
   const declaredLength = Number(req.headers?.["content-length"]);
   if (Number.isFinite(declaredLength) && declaredLength > maxBodyBytes) {
     throw new HttpError(
@@ -93,6 +110,17 @@ export function serializeCookie(name, value, options = {}) {
 }
 
 export function setResponseCookie(res, cookieValue) {
+  if (typeof res.header === "function") {
+    const current = res.getHeader?.("set-cookie");
+    const next = current
+      ? Array.isArray(current)
+        ? [...current, cookieValue]
+        : [current, cookieValue]
+      : cookieValue;
+    res.header("set-cookie", next);
+    return;
+  }
+
   const current = res.getHeader("Set-Cookie");
 
   if (!current) {
@@ -125,6 +153,12 @@ export function getRequestOrigin(req, fallbackOrigin = "http://127.0.0.1:3000") 
 }
 
 export function sendJson(res, statusCode, payload) {
+  if (typeof res.code === "function" && typeof res.send === "function") {
+    res.header("x-content-type-options", "nosniff");
+    res.code(statusCode).send(payload);
+    return;
+  }
+
   const body = JSON.stringify(payload);
   res.writeHead(statusCode, {
     "content-type": "application/json; charset=utf-8",
