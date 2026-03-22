@@ -77,10 +77,14 @@ export async function handleForgotPasswordRoute({ req, res, services, config }) 
       maxBodyBytes: config.maxRequestBodyBytes,
     });
     const payload = validateForgotPasswordPayload(body);
+    const origin =
+      config.publicAppOrigin ??
+      config.frontendOrigins?.[0] ??
+      getRequestOrigin(req);
 
     await services.passwordResetService.requestReset({
       email: payload.email,
-      origin: getRequestOrigin(req, config.publicAppOrigin ?? "http://127.0.0.1:3000"),
+      origin,
     });
 
     sendJson(res, 200, {

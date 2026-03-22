@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getHealth, listAccounts } from "../api/dashboardApi.js";
 
-export function useDashboardData({ enabled }) {
+export function useDashboardData({ enabled } = {}) {
   const abortControllerRef = useRef(null);
   const [health, setHealth] = useState(null);
   const [accounts, setAccounts] = useState([]);

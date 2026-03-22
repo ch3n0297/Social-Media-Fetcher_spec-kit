@@ -35,10 +35,15 @@
 
 - 系統 MUST 提供 `register/login/logout/me/forgot-password/reset-password` API。
 - Web Dashboard 的 `/api/v1/ui/*` MUST 需要已登入的 active 使用者。
-- Session MUST 使用 HttpOnly cookie，不可把 token 暴露給前端 JavaScript 持久保存。
+- Session MUST 使用 server-side session + HttpOnly cookie，不可把 token 暴露給前端 JavaScript 持久保存。
+- Session MUST 具備可設定的絕對過期與閒置逾時策略；目前預設以 `sessionTtlMs` 控制 7 天滑動續期。
+- Cookie-based 認證流程 MUST 搭配 CSRF 防護；首版至少要求 `SameSite=Lax` 與受信任 frontend origin 驗證，後續可升級為 double-submit token。
 - 新註冊使用者 MUST 先進入 `pending` 狀態，由 admin 核准後才能登入。
 - 管理員 MUST 可以查看待審核清單並執行核准或拒絕。
-- 忘記密碼流程 MUST 使用 server 產生的一次性 token。
+- 密碼 MUST 使用記憶體強化雜湊演算法保存；目前指定為 Node `crypto.scrypt`，並要求 email 正規化與密碼長度上下限。
+- 驗證相關端點 MUST 有 rate limiting 與暴力破解防護，至少涵蓋 `register/login/forgot-password/reset-password`。
+- 忘記密碼流程 MUST 使用 server 產生的一次性 token，且 token 在儲存時只能保留雜湊值。
+- Password reset token MUST 有明確過期時間；目前預設以 `passwordResetTtlMs` 控制 60 分鐘。
 - 忘記密碼與核准通知首版 MUST 寫入本地 outbox stub，不直接整合真實寄信商。
 - 系統 MUST 保留既有 Apps Script / HMAC 流程，不以 Web session 取代。
 
@@ -55,3 +60,4 @@
 - 已核准使用者可登入並成功查看 Dashboard。
 - 管理員可在 Web 介面完成待審核帳號核准。
 - 忘記密碼流程可在不依賴外部寄信服務下完成測試。
+- 文件需明確標示哪些安全控制已實作、哪些是生產環境升級項目，避免把本地 JSON store 誤當成正式部署架構。

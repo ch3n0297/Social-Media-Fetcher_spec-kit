@@ -8,6 +8,8 @@
 
 **Social Data Hub** 是一個社群行銷資料中台服務，用於從 Instagram、Facebook、TikTok 等平台自動抓取內容資料，經過正規化處理後同步至 Google Sheet（目前以本地 JSON 檔案模擬）。
 
+目前系統存在兩條並行的認證邊界：既有內部同步與寫入流程維持 HMAC 驗證；Web Dashboard 則透過 HttpOnly session cookie 保護受限 UI API。兩者用途不同，不互相取代。
+
 ### 技術棧
 
 | 項目 | 選擇 |
@@ -16,7 +18,7 @@
 | 模組系統 | ESM (ECMAScript Modules) |
 | 外部依賴 | **零** — 完全使用 Node 標準函式庫 |
 | 持久化 | JSON 檔案（原子寫入） |
-| 認證 | HMAC-SHA256 簽章驗證 + Cookie-based Session |
+| 認證 | 內部同步 / 寫入 API 使用 HMAC-SHA256；Dashboard UI 使用 Cookie-based Session |
 | 測試框架 | `node:test` (內建) |
 | 平台資料來源 | Fixture JSON 檔案（模擬 API） |
 

@@ -8,17 +8,18 @@ export class HttpRequestError extends Error {
 }
 
 function resolveApiUrl(pathname) {
+  const normalizedPathname = pathname.startsWith("/") ? pathname : `/${pathname}`;
   const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
 
   if (!configuredBaseUrl) {
-    return pathname;
+    return normalizedPathname;
   }
 
   const normalizedBaseUrl = configuredBaseUrl.endsWith("/")
     ? configuredBaseUrl.slice(0, -1)
     : configuredBaseUrl;
 
-  return `${normalizedBaseUrl}${pathname}`;
+  return `${normalizedBaseUrl}${normalizedPathname}`;
 }
 
 export async function requestJson(url, { body, headers, method = "GET", signal } = {}) {

@@ -10,8 +10,9 @@ export class OutboxMessageRepository {
 
   async create(message) {
     return this.store.updateCollection(this.collection, (messages) => {
-      messages.push(message);
-      return messages;
+      const nextMessages = Array.isArray(messages) ? messages : [];
+      nextMessages.push(message);
+      return nextMessages;
     });
   }
 }

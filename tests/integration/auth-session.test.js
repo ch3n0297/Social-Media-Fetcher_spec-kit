@@ -134,12 +134,20 @@ test("forgot-password writes a reset link to outbox and reset invalidates old pa
       },
     });
     const pendingUsersJson = await pendingUsers.json();
-    await fetch(`${baseUrl}/api/v1/admin/pending-users/${pendingUsersJson.users[0].id}/approve`, {
+    assert.equal(pendingUsers.status, 200);
+    const targetUser = pendingUsersJson.users.find((user) => user.email === "reset@example.com");
+    assert.ok(targetUser);
+
+    const approve = await fetch(`${baseUrl}/api/v1/admin/pending-users/${targetUser.id}/approve`, {
       method: "POST",
       headers: {
         cookie: adminLogin.cookie,
       },
     });
+    const approveJson = await approve.json();
+    assert.equal(approve.status, 200);
+    assert.equal(approveJson.user.id, targetUser.id);
+    assert.equal(approveJson.user.status, "active");
 
     const forgot = await sendJsonRequest({
       baseUrl,

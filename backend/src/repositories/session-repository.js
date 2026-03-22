@@ -15,13 +15,15 @@ export class SessionRepository {
 
   async create(session) {
     return this.store.updateCollection(this.collection, (sessions) => {
-      sessions.push(session);
-      return sessions;
+      const nextSessions = Array.isArray(sessions) ? sessions : [];
+      nextSessions.push(session);
+      return nextSessions;
     });
   }
 
   async updateById(sessionId, patch) {
     let updatedSession = null;
+    const { id: _ignoredId, ...safePatch } = patch ?? {};
 
     await this.store.updateCollection(this.collection, (sessions) => {
       const index = sessions.findIndex((session) => session.id === sessionId);
@@ -32,7 +34,7 @@ export class SessionRepository {
 
       sessions[index] = {
         ...sessions[index],
-        ...patch,
+        ...safePatch,
       };
       updatedSession = sessions[index];
       return sessions;

@@ -5,11 +5,9 @@ frontend/dist/
 *.log
 .env
 .env.*
-data/account-configs.json
-data/jobs.json
-data/raw-platform-records.json
-data/normalized-content-records.json
-data/sheet-status.json
-data/sheet-output.json
+backend/data/sessions.json
+backend/data/users.json
+backend/data/password-reset-tokens.json
+backend/data/outbox-messages.json
 tiktok-verify-site/
 Homework_rule.md

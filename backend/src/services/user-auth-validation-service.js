@@ -2,6 +2,7 @@ import { HttpError } from "../lib/errors.js";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 12;
+const MAX_PASSWORD_LENGTH = 256;
 
 function requireString(value, fieldName) {
   if (typeof value !== "string" || value.trim() === "") {
@@ -34,7 +35,29 @@ export function validatePassword(password, fieldName = "password") {
     );
   }
 
+  if (password.length > MAX_PASSWORD_LENGTH) {
+    throw new HttpError(
+      400,
+      "VALIDATION_ERROR",
+      `${fieldName} 長度不得超過 ${MAX_PASSWORD_LENGTH} 個字元。`,
+    );
+  }
+
   return password;
+}
+
+function validatePasswordForAuthentication(password, fieldName = "password") {
+  const normalizedPassword = requireString(password, fieldName);
+
+  if (normalizedPassword.length > MAX_PASSWORD_LENGTH) {
+    throw new HttpError(
+      400,
+      "VALIDATION_ERROR",
+      `${fieldName} 長度不得超過 ${MAX_PASSWORD_LENGTH} 個字元。`,
+    );
+  }
+
+  return normalizedPassword;
 }
 
 export function validateRegisterPayload(payload) {
@@ -60,7 +83,7 @@ export function validateLoginPayload(payload) {
 
   return {
     email: validateEmail(payload.email),
-    password: requireString(payload.password, "password"),
+    password: validatePasswordForAuthentication(payload.password, "password"),
   };
 }
 

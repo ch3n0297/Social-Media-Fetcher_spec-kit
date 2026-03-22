@@ -1,17 +1,1 @@
-[
-  {
-    "id": "b10415f2-d5cd-44d6-a63f-a84f42ad9e72",
-    "email": "hjc@local.com",
-    "displayName": "Admin",
-    "passwordHash": "scrypt$782cf691e96bf4e0980be2e044d88dcf$a38182033e0c24ae6bd0fc0c7214be7ceceac18cd5204e2803702b53822a8c0b6ad8da598e771c8b7492a8602ea94fcd14636b842a484666cbaa396e41651ec8",
-    "role": "admin",
-    "status": "active",
-    "approvedAt": "2026-03-19T15:49:52.352Z",
-    "approvedBy": "bootstrap-admin",
-    "rejectedAt": null,
-    "rejectedBy": null,
-    "lastLoginAt": "2026-03-19T15:54:00.960Z",
-    "createdAt": "2026-03-19T15:49:52.352Z",
-    "updatedAt": "2026-03-19T15:54:00.960Z"
-  }
-]
+[]

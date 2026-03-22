@@ -25,3 +25,24 @@ test("requestJson wraps non-2xx responses with readable errors", async () => {
     status: 401,
   });
 });
+
+test("requestJson normalizes urls that do not start with a slash", async () => {
+  const fetchMock = vi.fn(async () =>
+    new Response(JSON.stringify({ ok: true }), {
+      headers: {
+        "content-type": "application/json",
+      },
+      status: 200,
+    }),
+  );
+
+  vi.stubGlobal("fetch", fetchMock);
+
+  await expect(requestJson("api/v1/auth/me")).resolves.toEqual({ ok: true });
+  expect(fetchMock).toHaveBeenCalledWith(
+    "/api/v1/auth/me",
+    expect.objectContaining({
+      method: "GET",
+    }),
+  );
+});

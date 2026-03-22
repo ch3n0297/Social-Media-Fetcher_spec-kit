@@ -1,5 +1,27 @@
 import { HttpError } from "./errors.js";
 
+const INVALID_COOKIE_PATH_PATTERN = /[\u0000-\u001f\u007f;\r\n]/;
+
+function decodeCookieValue(value) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function normalizeCookiePath(pathValue) {
+  if (typeof pathValue !== "string") {
+    throw new TypeError("Cookie path must be a string.");
+  }
+
+  if (!pathValue.startsWith("/") || INVALID_COOKIE_PATH_PATTERN.test(pathValue)) {
+    throw new TypeError("Cookie path must start with '/' and may not contain control characters or ';'.");
+  }
+
+  return pathValue;
+}
+
 export async function readJsonRequest(req, { maxBodyBytes = 1024 * 1024 } = {}) {
   if (
     req &&
@@ -78,7 +100,7 @@ export function readCookies(req) {
           return [part, ""];
         }
 
-        return [part.slice(0, index), decodeURIComponent(part.slice(index + 1))];
+        return [part.slice(0, index), decodeCookieValue(part.slice(index + 1))];
       }),
   );
 }
@@ -91,7 +113,7 @@ export function serializeCookie(name, value, options = {}) {
   }
 
   if (options.path) {
-    segments.push(`Path=${options.path}`);
+    segments.push(`Path=${normalizeCookiePath(options.path)}`);
   }
 
   if (options.httpOnly ?? true) {
@@ -132,7 +154,7 @@ export function setResponseCookie(res, cookieValue) {
   res.setHeader("Set-Cookie", next);
 }
 
-export function getRequestOrigin(req, fallbackOrigin = "http://127.0.0.1:3000") {
+export function getRequestOrigin(req, fallbackOrigin) {
   const forwardedProto = req.headers?.["x-forwarded-proto"];
   const forwardedHost = req.headers?.["x-forwarded-host"];
   const proto = Array.isArray(forwardedProto) ? forwardedProto[0] : forwardedProto;
