@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { JobQueue } from "../../src/services/job-queue.js";
+import { JobQueue } from "../../backend/src/services/job-queue.js";
 
 test("JobQueue rejects duplicate enqueue attempts while a job is running", async () => {
   let resolveJob;

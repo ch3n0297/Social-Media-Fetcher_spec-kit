@@ -5,7 +5,7 @@ import {
   readStoreFile,
   sendSignedJson,
   setupTestApp,
-} from "../../test-support/support.js";
+} from "../../backend/test-support/support.js";
 
 test("manual refresh returns queued immediately and completes asynchronously", async () => {
   const accounts = [createAccount({ platform: "instagram", accountId: "ig-manual-1" })];

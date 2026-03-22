@@ -217,3 +217,75 @@ test("renders dashboard data for an authenticated admin and supports pending-use
     ).toBe(true);
   });
 });
+
+test("admin pending-user errors stay inside the pending-users panel", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url) => {
+      if (url === "/api/v1/auth/me") {
+        return createJsonResponse(200, {
+          user: {
+            id: "user-admin",
+            email: "admin@example.com",
+            displayName: "管理員",
+            role: "admin",
+            status: "active",
+            approvedAt: "2026-03-18T00:00:00.000Z",
+            approvedBy: "bootstrap-admin",
+            lastLoginAt: "2026-03-18T00:00:00.000Z",
+            createdAt: "2026-03-18T00:00:00.000Z",
+            updatedAt: "2026-03-18T00:00:00.000Z",
+          },
+        });
+      }
+
+      if (url === "/api/v1/admin/pending-users") {
+        return createJsonResponse(500, {
+          error: "INTERNAL_ERROR",
+          system_message: "待審清單暫時無法載入。",
+        });
+      }
+
+      if (url === "/health") {
+        return createJsonResponse(200, {
+          now: "2026-03-18T00:00:00.000Z",
+          queue: {
+            concurrency: 2,
+            pending: 0,
+            running: 0,
+          },
+          scheduler: {
+            intervalMs: 60000,
+            running: true,
+            tickInProgress: false,
+          },
+          status: "ok",
+        });
+      }
+
+      if (url === "/api/v1/ui/accounts") {
+        return createJsonResponse(200, {
+          capabilities: {
+            manualRefresh: false,
+            mode: "read-only",
+            reason: "read-only",
+            scheduledSync: false,
+          },
+          generatedAt: "2026-03-18T00:00:00.000Z",
+          accounts: [],
+        });
+      }
+
+      return createJsonResponse(404, {
+        error: "NOT_FOUND",
+        system_message: `Unexpected request: ${url}`,
+      });
+    }),
+  );
+
+  render(<App />);
+
+  await screen.findByText("待審註冊申請");
+  await screen.findByText("待審清單暫時無法載入。");
+  expect(screen.queryByText("資料載入失敗：待審清單暫時無法載入。")).not.toBeInTheDocument();
+});

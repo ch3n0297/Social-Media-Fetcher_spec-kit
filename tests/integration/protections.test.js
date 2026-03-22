@@ -5,7 +5,7 @@ import {
   readStoreFile,
   sendSignedJson,
   setupTestApp,
-} from "../../test-support/support.js";
+} from "../../backend/test-support/support.js";
 
 test("manual refresh rejects invalid refresh_days", async () => {
   const accounts = [createAccount({ platform: "instagram", accountId: "ig-invalid-1" })];

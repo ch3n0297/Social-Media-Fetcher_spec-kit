@@ -7,7 +7,7 @@ export function PendingUsersPanel({
   isSubmitting,
   onApprove,
   onReject,
-  users,
+  users = [],
 }) {
   let content = null;
 

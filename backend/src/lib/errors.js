@@ -20,6 +20,16 @@ export function toErrorResponse(error) {
     };
   }
 
+  if (error?.statusCode === 413 || error?.code === "FST_ERR_CTP_BODY_TOO_LARGE") {
+    return {
+      statusCode: 413,
+      body: {
+        error: "PAYLOAD_TOO_LARGE",
+        system_message: "請求內容不得超過允許的大小。",
+      },
+    };
+  }
+
   return {
     statusCode: 500,
     body: {

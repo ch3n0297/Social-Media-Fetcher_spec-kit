@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { SchedulerService } from "../../src/services/scheduler-service.js";
+import { SchedulerService } from "../../backend/src/services/scheduler-service.js";
 
 test("SchedulerService does not overlap ticks when a run takes longer than the interval", async () => {
   let activeRuns = 0;

@@ -75,11 +75,15 @@ export class StatusService {
 
   async #syncAccountStatus(accountConfig, patch) {
     const accountKey = makeAccountKey(accountConfig.platform, accountConfig.accountId);
-    await this.accountRepository.updateByAccountKey(accountKey, patch);
+    const nextPatch = {
+      ...patch,
+      updatedAt: this.clock().toISOString(),
+    };
+    await this.accountRepository.updateByAccountKey(accountKey, nextPatch);
 
     const updatedAccount = {
       ...accountConfig,
-      ...patch,
+      ...nextPatch,
     };
 
     await this.sheetGateway.writeStatus(updatedAccount, {

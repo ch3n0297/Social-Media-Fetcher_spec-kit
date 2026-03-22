@@ -34,7 +34,7 @@ export function usePendingUsers({ enabled }) {
         return;
       }
 
-      setUsers(Array.isArray(payload.users) ? payload.users : []);
+      setUsers(Array.isArray(payload?.users) ? payload.users : []);
     } catch (requestError) {
       if (requestError.name === "AbortError") {
         return;

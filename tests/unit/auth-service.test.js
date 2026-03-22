@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { signPayload, verifySignedRequest } from "../../src/services/auth-service.js";
+import { signPayload, verifySignedRequest } from "../../backend/src/services/auth-service.js";
 
 test("verifySignedRequest accepts valid HMAC signatures", () => {
   const rawBody = JSON.stringify({ requested_by: "unit-test" });

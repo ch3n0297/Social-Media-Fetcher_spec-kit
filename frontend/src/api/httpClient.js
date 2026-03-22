@@ -7,8 +7,23 @@ export class HttpRequestError extends Error {
   }
 }
 
+function resolveApiUrl(pathname) {
+  const normalizedPathname = pathname.startsWith("/") ? pathname : `/${pathname}`;
+  const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+
+  if (!configuredBaseUrl) {
+    return normalizedPathname;
+  }
+
+  const normalizedBaseUrl = configuredBaseUrl.endsWith("/")
+    ? configuredBaseUrl.slice(0, -1)
+    : configuredBaseUrl;
+
+  return `${normalizedBaseUrl}${normalizedPathname}`;
+}
+
 export async function requestJson(url, { body, headers, method = "GET", signal } = {}) {
-  const response = await fetch(url, {
+  const response = await fetch(resolveApiUrl(url), {
     body: body === undefined ? undefined : JSON.stringify(body),
     credentials: "include",
     headers: {

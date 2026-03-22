@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { FileSheetGateway } from "../../src/adapters/sheets/file-sheet-gateway.js";
+import { FileSheetGateway } from "../../backend/src/adapters/sheets/file-sheet-gateway.js";
 
 test("writeStatus does not allow patches to override account identity fields", async () => {
   let captured = null;

@@ -27,26 +27,31 @@
 
 ## 1. 目前產品與前端邊界
 
-- 目前正式的操作與展示前端其實是 Google Sheet，這點由規格明確定義，Server 才是唯一可信核心。
-- 現有 Node 服務只公開 3 個 HTTP 路由：
-  - [`handleHealthRoute()`](../src/routes/health-route.js#L3)
-  - [`handleManualRefreshRoute()`](../src/routes/manual-refresh-route.js#L5)
-  - [`handleInternalScheduledSyncRoute()`](../src/routes/internal-scheduled-sync-route.js#L6)
+- 操作與展示前端為 React Dashboard（內部操作台），Google Sheet 為客戶報表展示端（由 Server 直接回寫）。
+- Server 是唯一可信核心。
+- 現有 Node 服務公開多個 HTTP 路由，包含：
+  - 健康檢查 [`GET /health`]
+  - 帳號列表 [`GET /api/v1/ui/accounts`]
+  - 帳號詳情 [`GET /api/v1/ui/accounts/:platform/:accountId`]
+  - 手動刷新 [`POST /api/v1/refresh-jobs/manual`]（HMAC 認證）
+  - 排程同步 [`POST /api/v1/internal/scheduled-sync`]（HMAC 認證）
+  - 用戶認證（register / login / logout / me / forgot-password / reset-password）
+  - 管理員功能（pending-users / approve / reject）
 - 現有後端已經保存前端最需要的兩類資料：
-  - 帳號狀態快照，由 [`StatusService`](../src/services/status-service.js) 寫入 [`sheet-status`](../data/)
-  - 整理後內容輸出，由 [`FileSheetGateway`](../src/adapters/sheets/file-sheet-gateway.js) 寫入 [`sheet-output`](../data/)
-- 但目前沒有提供瀏覽器可直接使用的讀取 API，也沒有靜態檔案服務或 browser-safe 驗證方式。
+  - 帳號狀態快照，由 `StatusService` 寫入 `sheet-status`
+  - 整理後內容輸出，由 `FileSheetGateway` 寫入 `sheet-output`
+- Dashboard 透過 Session Cookie 認證存取 API，手動刷新功能透過後端代理呼叫。
 
 ## 2. 最小可行前端形態
 
 ### 建議結論
 
-最小可行版本建議做成 **單頁靜態 Dashboard**，而不是先做多頁 SPA。
+最小可行版本建議做成 **單頁 React Dashboard**，以 Vite 建置與開發，而不是回退成純靜態 HTML。
 
 理由：
 
-- 目前專案沒有前端框架、打包器或 UI library。
-- [`package.json`](../package.json) 顯示 runtime 僅使用 Node.js 標準函式庫，代表前端也應維持低複雜度。
+- 專案目前已採 React 18 + Vite，延續既有工具鏈比回退成無框架頁面更一致。
+- 前端需求仍以低複雜度為原則，但已經有元件化、狀態管理與測試需求，適合保留 SPA 形式。
 - 現有後端最接近前端需求的是狀態檢視、單帳號刷新、同步結果表格，單頁即可覆蓋。
 
 ### 建議頁面與區塊
@@ -63,7 +68,7 @@
 
 ```mermaid
 flowchart LR
-  UI[Static Dashboard]
+  UI[React Dashboard]
   READ[Read API Layer]
   WRITE[Trusted Command API]
   CORE[Node Service Layer]
@@ -231,18 +236,17 @@ flowchart LR
 - 僅供管理員或維運使用
 - 不建議放在一般營運人員的主操作流程第一層
 
-## 4. 建議的靜態前端實作方式
+## 4. 建議的前端實作方式
 
 ### 4.1 技術選型
 
 在目前專案限制下，建議採用：
 
-- 純靜態 HTML
-- 原生 CSS
-- 原生 ES Modules JavaScript
-- 使用 `fetch` 呼叫後端
-- 不引入前端框架
-- 不引入打包器
+- React 18 元件式介面
+- Vite 開發伺服器與 build pipeline
+- 原生 CSS / design tokens
+- 使用 `fetch` + `credentials: "include"` 呼叫後端
+- 前端維持唯讀與受限操作，不持有第三方平台 secret
 
 ### 4.2 建議目錄與實作形式
 
@@ -253,8 +257,9 @@ flowchart LR
 最小結構可為：
 
 - [`frontend/index.html`](../frontend/index.html)
-- [`frontend/main.js`](../frontend/main.js)
-- [`frontend/styles.css`](../frontend/styles.css)
+- [`frontend/src/main.jsx`](../frontend/src/main.jsx)
+- [`frontend/src/App.jsx`](../frontend/src/App.jsx)
+- [`frontend/src/styles/`](../frontend/src/styles/)
 
 ### 4.3 前端互動模式
 
@@ -262,6 +267,14 @@ flowchart LR
 - 使用列表點選切換帳號詳情
 - 手動刷新送出後，前端不等待完成，只更新畫面為已送出
 - 之後以輪詢方式更新帳號狀態與內容快照
+
+### 4.4 認證與 CSRF 策略
+
+- Dashboard 使用 HttpOnly session cookie，不把 session token 存到 Local Storage / Session Storage。
+- 前端所有 API 請求都使用 `credentials: "include"`，並僅信任明確設定的 backend origin。
+- 所有會改變狀態的 cookie-based 請求都必須要求受信任 frontend origin；這是第一層 CSRF 防護。
+- `SameSite=Lax` 是基線設定；若未來出現跨站嵌入需求，再評估 double-submit CSRF token。
+- 既有 HMAC 保護的 `manual-refresh` / `scheduled-sync` 仍只允許 server-side 代理，不讓瀏覽器直接持有 shared secret。
 
 ### 4.4 為何不建議更重的方案
 
@@ -330,13 +343,18 @@ flowchart LR
    - 手動刷新接受後，只能靠帳號狀態快照間接觀察進度
    - 若前端要顯示更完整的 job lifecycle，需補 job query API
 
-5. **系統仍以 Google Sheet 為主要操作介面**
-   - 規格明定 Google Sheet 是操作與展示入口
-   - 因此 web 前端在首階段較適合作為內部輔助儀表板，而不是直接取代全部操作流程
+5. **系統仍以 React Dashboard 為主要操作介面，Google Sheet 為客戶報表展示端**
+   - React Dashboard 是操作與展示入口
+   - Google Sheet 由 Server 透過 Google Sheets API 直接回寫資料，供客戶查看
+   - 不使用 Apps Script
 
 6. **目前佇列與部分限流狀態為 in-memory**
    - [`JobQueue`](../src/services/job-queue.js) 與 [`ManualRefreshService`](../src/services/manual-refresh-service.js) 的部分執行中狀態依賴單機記憶體
    - 這與目前單一 service instance 的規劃一致，但前端設計不應預設多節點一致性
+
+7. **CSRF 與 session 安全需要跟 frontend 部署設定一起管理**
+   - `FRONTEND_ORIGINS`、`PUBLIC_APP_ORIGIN`、cookie `SameSite` 與 TLS 終端設定必須一致
+   - 若部署拓撲改變，frontend plan 與 auth spec 必須一起更新
 
 ## 7. 建議的最小交付範圍
 

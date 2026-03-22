@@ -112,7 +112,8 @@ export class UserAuthService {
   }
 
   async login({ email, password }) {
-    const user = await this.userRepository.findByEmail(email);
+    const normalizedEmail = normalizeEmailAddress(email);
+    const user = await this.userRepository.findByEmail(normalizedEmail);
 
     if (!user || !(await verifyPassword(password, user.passwordHash))) {
       throw new HttpError(401, "LOGIN_FAILED", "登入失敗，請確認 email 與密碼是否正確。");
@@ -240,7 +241,7 @@ export class UserAuthService {
       httpOnly: true,
       maxAge: Math.floor(this.config.sessionTtlMs / 1000),
       path: "/",
-      sameSite: "Lax",
+      sameSite: this.config.sessionCookieSameSite,
       secure: this.config.sessionCookieSecure,
     });
   }
@@ -250,7 +251,7 @@ export class UserAuthService {
       httpOnly: true,
       maxAge: 0,
       path: "/",
-      sameSite: "Lax",
+      sameSite: this.config.sessionCookieSameSite,
       secure: this.config.sessionCookieSecure,
     });
   }
@@ -260,14 +261,15 @@ export class UserAuthService {
       return null;
     }
 
-    const existingUser = await this.userRepository.findByEmail(this.config.bootstrapAdminEmail);
+    const normalizedEmail = normalizeEmailAddress(this.config.bootstrapAdminEmail);
+    const existingUser = await this.userRepository.findByEmail(normalizedEmail);
     const passwordHash = await hashPassword(this.config.bootstrapAdminPassword);
     const now = this.clock().toISOString();
 
     if (existingUser) {
       await this.userRepository.updateById(existingUser.id, {
         displayName: this.config.bootstrapAdminName,
-        email: normalizeEmailAddress(this.config.bootstrapAdminEmail),
+        email: normalizedEmail,
         passwordHash,
         role: "admin",
         status: "active",
@@ -281,7 +283,7 @@ export class UserAuthService {
 
     const user = {
       id: crypto.randomUUID(),
-      email: normalizeEmailAddress(this.config.bootstrapAdminEmail),
+      email: normalizedEmail,
       displayName: this.config.bootstrapAdminName,
       passwordHash,
       role: "admin",

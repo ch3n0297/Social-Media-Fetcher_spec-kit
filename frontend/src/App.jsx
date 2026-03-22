@@ -112,7 +112,7 @@ export default function App() {
       />
       <SecurityBanner capabilities={capabilities} />
       <PageErrorBanner
-        message={authError || pendingUsers.error || dashboardError || detailError}
+        message={authError || dashboardError || detailError}
       />
       {user.role === "admin" ? (
         <PendingUsersPanel

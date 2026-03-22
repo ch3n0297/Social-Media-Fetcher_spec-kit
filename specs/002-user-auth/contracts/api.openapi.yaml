@@ -1,32 +1,430 @@
 openapi: 3.1.0
 info:
   title: Social Data Hub Auth API
-  version: 0.1.0
+  version: 0.2.0
+  description: >
+    Dashboard login / register / password reset / admin approval API contract.
+    Cookie-based endpoints rely on an HttpOnly session cookie and trusted frontend origins.
+tags:
+  - name: Auth
+    description: 使用者登入、註冊與密碼重設流程
+  - name: Admin
+    description: 管理員審核待審註冊申請
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: social_data_session
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error, system_message]
+      properties:
+        error:
+          type: string
+        system_message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+    AuthUser:
+      type: object
+      required: [id, email, displayName, role, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+        role:
+          type: string
+          enum: [admin, member]
+        status:
+          type: string
+          enum: [pending, active, rejected, disabled]
+        approvedAt:
+          type: [string, "null"]
+          format: date-time
+        approvedBy:
+          type: [string, "null"]
+        lastLoginAt:
+          type: [string, "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    RegisterRequest:
+      type: object
+      required: [display_name, email, password]
+      properties:
+        display_name:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 12
+          maxLength: 256
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          maxLength: 256
+    ForgotPasswordRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+    ResetPasswordRequest:
+      type: object
+      required: [token, password]
+      properties:
+        token:
+          type: string
+        password:
+          type: string
+          minLength: 12
+          maxLength: 256
+    PendingUsersResponse:
+      type: object
+      required: [users]
+      properties:
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuthUser"
+    PendingUserDecisionResponse:
+      type: object
+      required: [system_message, user]
+      properties:
+        system_message:
+          type: string
+        user:
+          $ref: "#/components/schemas/AuthUser"
+    LoginResponse:
+      type: object
+      required: [system_message, user]
+      properties:
+        system_message:
+          type: string
+        user:
+          $ref: "#/components/schemas/AuthUser"
+    RegisterResponse:
+      type: object
+      required: [status, system_message, user]
+      properties:
+        status:
+          type: string
+          enum: [pending]
+        system_message:
+          type: string
+        user:
+          $ref: "#/components/schemas/AuthUser"
+    CurrentUserResponse:
+      type: object
+      required: [user]
+      properties:
+        user:
+          $ref: "#/components/schemas/AuthUser"
+    MessageResponse:
+      type: object
+      required: [system_message]
+      properties:
+        system_message:
+          type: string
 paths:
   /api/v1/auth/register:
     post:
+      tags: [Auth]
+      operationId: registerUser
       summary: 註冊新帳號
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: 註冊成功，帳號待審核
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisterResponse"
+        "400":
+          description: 驗證失敗
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: email 已存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /api/v1/auth/login:
     post:
-      summary: 使用 Email/密碼登入
+      tags: [Auth]
+      operationId: loginUser
+      summary: 使用 Email / 密碼登入
+      description: 成功時以 `Set-Cookie` 設定 HttpOnly session cookie。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: 登入成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "401":
+          description: 帳密錯誤
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: 帳號尚未核准或已停用
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /api/v1/auth/logout:
     post:
+      tags: [Auth]
+      operationId: logoutUser
       summary: 登出目前 session
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: 登出成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          description: 尚未登入
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /api/v1/auth/me:
     get:
+      tags: [Auth]
+      operationId: getCurrentUser
       summary: 取得目前登入使用者
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: 目前登入使用者
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentUserResponse"
+        "401":
+          description: 尚未登入
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /api/v1/auth/forgot-password:
     post:
+      tags: [Auth]
+      operationId: requestPasswordReset
       summary: 送出忘記密碼申請
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ForgotPasswordRequest"
+      responses:
+        "200":
+          description: 若帳號存在，系統會寫入 reset 指示到 outbox
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "429":
+          description: rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /api/v1/auth/reset-password:
     post:
+      tags: [Auth]
+      operationId: resetPassword
       summary: 使用 reset token 重設密碼
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordRequest"
+      responses:
+        "200":
+          description: 密碼重設成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          description: token 無效或已過期
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /api/v1/admin/pending-users:
     get:
+      tags: [Admin]
+      operationId: listPendingUsers
       summary: 列出待審核使用者
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: 待審使用者清單
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PendingUsersResponse"
+        "401":
+          description: 尚未登入
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: 非管理員
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /api/v1/admin/pending-users/{userId}/approve:
     post:
+      tags: [Admin]
+      operationId: approvePendingUser
       summary: 核准待審核使用者
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 核准成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PendingUserDecisionResponse"
+        "401":
+          description: 尚未登入
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: 非管理員
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: 使用者不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: 使用者狀態不可核准
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /api/v1/admin/pending-users/{userId}/reject:
     post:
+      tags: [Admin]
+      operationId: rejectPendingUser
       summary: 拒絕待審核使用者
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 拒絕成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PendingUserDecisionResponse"
+        "401":
+          description: 尚未登入
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: 非管理員
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: 使用者不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: 使用者狀態不可拒絕
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
